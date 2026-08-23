@@ -1,0 +1,34 @@
+<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Admin</title><link rel="stylesheet" href="/css/styles.css"><script type="importmap">{"imports":{"motion":"https://cdn.jsdelivr.net/npm/motion@12.16.0/+esm"}}</script></head><body>
+<div class="navbar"><div class="brand"><a href="/pages/browse.html">Campus Booking</a></div><nav class="nav-right"><a href="/pages/browse.html">Browse</a><a href="/pages/visualization.html">Visualization</a><a data-role="TEACHER" href="/pages/approvals.html">Approvals</a><a data-role="SUPERADMIN" href="/pages/admin.html">Admin</a><div class="account-wrap"><button class="account-btn" onclick="toggleAccount(event)">Account ▾</button><div id="accountDropdown" class="account-dropdown hidden"><div id="accountName" style="font-weight:600"></div><div id="accountEmail" style="font-size:12px;color:#666"></div><div id="accountRole" style="font-size:12px;color:#666;margin-bottom:8px"></div><a href="/pages/my-bookings.html" class="btn btn-outline btn-small" style="display:block;text-align:center;margin-bottom:8px">My Bookings</a><button class="btn btn-danger btn-small" style="width:100%" onclick="doLogout()">Logout</button></div></div></nav></div>
+<div class="container"><h2>Superadmin — Users</h2>
+<div class="card"><h3>Add User</h3>
+  <input id="email" placeholder="email@xaviers.edu.in" style="padding:8px;border:1px solid #ddd;border-radius:8px">
+  <input id="name" placeholder="Full name" style="padding:8px;border:1px solid #ddd;border-radius:8px">
+  <select id="role" style="padding:8px;border:1px solid #ddd;border-radius:8px"><option>STUDENT</option><option>TEACHER</option></select>
+  <button class="btn btn-primary btn-small" onclick="add()">Add</button><span id="msg" style="margin-left:8px"></span>
+</div>
+<div id="list"></div>
+</div>
+<script src="/js/api.js"></script><script src="/js/auth.js"></script>
+<script type="module">
+import { animate } from 'motion';
+checkAuth().then(me=>{ if(me && me.role!=='SUPERADMIN') location.href='/pages/browse.html'; if(me){ document.getElementById('accountName').textContent=me.name; document.getElementById('accountEmail').textContent=me.email; document.getElementById('accountRole').textContent=me.role; }});
+window.toggleAccount=function(e){ e.stopPropagation(); document.getElementById('accountDropdown').classList.toggle('hidden'); };
+document.addEventListener('click', ()=> document.getElementById('accountDropdown').classList.add('hidden'));
+animate('.navbar', { opacity:[0,1], y:[-6,0]}, { duration:0.3 });
+async function load(){
+  try{
+    const data=await API.adminUsers();
+    document.getElementById('list').innerHTML='<table><tr><th>Email</th><th>Name</th><th>Role</th><th>Action</th></tr>'+data.map(u=>`<tr><td>${u.email}</td><td>${u.name}</td><td>${u.role}</td><td>${u.role!=='SUPERADMIN'?`<button class="btn btn-danger btn-small" onclick="removeU(${u.id})">Remove</button>`:''}</td></tr>`).join('')+'</table>';
+  }catch(e){ document.getElementById('list').textContent=e.message; }
+}
+window.add=async function(){
+  const email=document.getElementById('email').value.trim();
+  const name=document.getElementById('name').value.trim();
+  const role=document.getElementById('role').value;
+  try{ await API.adminAdd(email,name,role); document.getElementById('msg').textContent='Added'; load(); }catch(e){ document.getElementById('msg').textContent=e.message; }
+}
+window.removeU=async function(id){ if(!confirm('Deactivate user?')) return; await API.adminRemove(id); load(); }
+load();
+</script>
+</body></html>

@@ -1,0 +1,137 @@
+<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Browse Rooms</title><link rel="stylesheet" href="/css/styles.css"><script type="importmap">{"imports":{"motion":"https://cdn.jsdelivr.net/npm/motion@12.16.0/+esm"}}</script></head><body>
+<div class="navbar"><div class="brand"><a href="/pages/browse.html">Campus Booking</a></div><nav class="nav-right"><a href="/pages/browse.html">Browse</a><a href="/pages/visualization.html">Visualization</a><a data-role="TEACHER" href="/pages/approvals.html">Approvals</a><a data-role="SUPERADMIN" href="/pages/admin.html">Admin</a><div class="account-wrap"><button class="account-btn" onclick="toggleAccount(event)">Account ▾</button><div id="accountDropdown" class="account-dropdown hidden"><div id="accountName" style="font-weight:600"></div><div id="accountEmail" style="font-size:12px;color:#666"></div><div id="accountRole" style="font-size:12px;color:#666;margin-bottom:8px"></div><a href="/pages/my-bookings.html" class="btn btn-outline btn-small" style="display:block;text-align:center;margin-bottom:8px">My Bookings</a><button class="btn btn-danger btn-small" style="width:100%" onclick="doLogout()">Logout</button></div></div></nav></div>
+<div class="browse-hero">
+  <h2 style="text-align:center;margin:0 0 18px">Browse Rooms</h2>
+  <div class="search-pill-wrap" style="display:flex;justify-content:center;width:100%">
+    <input id="search" class="search-pill" placeholder="Search rooms — e.g. LR21, Seminar Room, Lab" style="width:min(640px,92vw);height:48px;border-radius:999px;border:1px solid #e5e7eb;background:#fff;padding:0 22px;font-size:15px;outline:none;box-shadow:0 2px 10px rgba(0,0,0,.06)">
+  </div>
+  <div class="filters" id="filterBar" style="justify-content:center;margin-top:14px">
+    <select id="building"><option value="">All Buildings</option><option>MAIN</option><option>HOSTEL</option><option>ANNEX</option></select>
+    <select id="floor"><option value="">All Floors</option><option>Ground</option><option>First</option><option>Second</option><option>Third</option><option>Terrace</option></select>
+    <select id="type"><option value="">All Types</option><option>CLASSROOM</option><option>LAB</option><option>COURT</option></select>
+    <button class="btn btn-primary btn-small" onclick="doSearch()">Search</button>
+    <button class="btn btn-outline btn-small" onclick="clearFilters()">Clear</button>
+  </div>
+</div>
+<div class="container" style="padding-top:0">
+  <div id="results" class="grid hidden" style="margin-top:18px"></div>
+  <div id="noResults" class="hidden" style="text-align:center;color:#666;margin-top:18px">No rooms match your filters.</div>
+</div>
+<script src="/js/api.js"></script><script src="/js/auth.js"></script>
+<script type="module">
+import { animate, stagger } from 'motion';
+let me;
+checkAuth().then(u=> { me=u; if(u){ document.getElementById('accountName').textContent=u.name; document.getElementById('accountEmail').textContent=u.email; document.getElementById('accountRole').textContent=u.role; } });
+window.toggleAccount=(e)=>{ e.stopPropagation(); document.getElementById('accountDropdown').classList.toggle('hidden'); };
+document.addEventListener('click', ()=> document.getElementById('accountDropdown').classList.add('hidden'));
+
+document.getElementById('search').addEventListener('keydown', (e)=>{ if(e.key==='Enter') doSearch(); });
+
+window.clearFilters=()=>{
+  search.value=''; building.value=''; floor.value=''; type.value='';
+  document.getElementById('results').classList.add('hidden');
+  document.getElementById('noResults').classList.add('hidden');
+  document.querySelector('.browse-hero').classList.remove('has-results');
+};
+window.doSearch=async()=>{
+  const params={ size:100 };
+  if(search.value.trim()) params.search=search.value.trim();
+  if(building.value) params.building=building.value;
+  if(floor.value) params.floor=floor.value;
+  if(type.value) params.type=type.value;
+  const res=document.getElementById('results');
+  const no=document.getElementById('noResults');
+  const hasFilter = params.search || params.building || params.floor || params.type;
+  const hero=document.querySelector('.browse-hero');
+  if(!hasFilter){
+    res.classList.add('hidden'); no.classList.add('hidden'); hero.classList.remove('has-results');
+    return;
+  }
+  hero.classList.add('has-results');
+  const data=await API.rooms(params);
+  const list=data.content||data;
+  if(!list.length){
+    res.classList.add('hidden'); no.classList.remove('hidden'); return;
+  }
+  no.classList.add('hidden'); res.classList.remove('hidden');
+  res.innerHTML=list.map(r=>{
+    const cap = r.roomType==='COURT' ? '' : ` · cap ${r.capacity}`;
+    return `<div class="card room-card" data-id="${r.id}" style="margin-bottom:0">
+      <div style="display:flex;justify-content:space-between;align-items:start">
+        <h4 style="margin:0">${r.name}</h4>
+        <span style="font-size:10px;padding:3px 7px;border-radius:999px;background:#eef2ff;color:#2d4bf0;font-weight:600">${r.roomType}</span>
+      </div>
+      <div style="font-size:13px;color:#666;margin:6px 0">${r.building} · ${r.floor||'-'}${cap}</div>
+      <button class="btn btn-primary btn-small" onclick="openBookInline(${r.id},'${r.name.replace(/'/g,"\\'")}')">Book</button>
+      <div id="book-${r.id}" class="hidden" style="margin-top:12px;padding:12px;border:1px solid #2d4bf0;border-radius:10px;background:#f0f3ff"></div>
+    </div>`;
+  }).join('');
+  animate('.room-card', { opacity:[0,1], y:[8,0]}, { duration:0.3, delay: stagger(0.04) });
+};
+
+const slotList=['07:00','08:00','09:00','10:00','11:00','12:00','13:00','14:00','15:00','16:00','17:00','18:00','19:00'];
+function istDateISO(d=new Date()){ return new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Kolkata',year:'numeric',month:'2-digit',day:'numeric'}).format(d); }
+function istAddDaysISO(days){ const d=new Date(); d.setDate(d.getDate()+days); return istDateISO(d); }
+function todayISO(){ return istDateISO(); }
+function maxISO(){ return istAddDaysISO(2); }
+
+window.openBookInline=async(id,name)=>{
+  const box=document.getElementById('book-'+id);
+  const alreadyOpen = !box.classList.contains('hidden');
+  document.querySelectorAll('[id^="book-"]').forEach(b=>b.classList.add('hidden'));
+  if(alreadyOpen) return;
+  box.classList.remove('hidden');
+  box.innerHTML=`
+    <div style="font-weight:600;font-size:14px;margin-bottom:8px">Book ${name}</div>
+    <label style="font-size:13px">Date <input type="date" id="date-${id}" value="${todayISO()}" min="${todayISO()}" max="${maxISO()}" style="margin-left:6px;padding:6px;border:1px solid #ccc;border-radius:8px"></label>
+    <label style="display:block;margin-top:10px;font-size:13px">Time slot <select id="slot-${id}" style="width:100%;padding:8px;border:1px solid #ccc;border-radius:8px;margin-top:4px"><option value="">Select time</option></select></label>
+    <label style="display:block;margin-top:10px;font-size:13px">Purpose (optional) <input id="purp-${id}" placeholder="e.g. Club meeting" style="width:100%;padding:8px;border:1px solid #ccc;border-radius:8px;margin-top:4px"></label>
+    <div id="warn-${id}" style="font-size:12px;color:#854d0e;margin-top:6px"></div>
+    <div id="msg-${id}" style="font-size:13px;margin-top:6px"></div>
+    <div style="margin-top:10px"><button class="btn btn-primary btn-small" onclick="confirmInline(${id})">Confirm Booking</button> <button class="btn btn-outline btn-small" onclick="closeInline(${id})">Cancel</button></div>
+  `;
+  document.getElementById('date-'+id).addEventListener('change', ()=> loadSlotsInline(id));
+  await loadSlotsInline(id);
+  animate(box, { opacity:[0,1], y:[4,0]}, { duration:0.25 });
+};
+window.closeInline=(id)=>{ document.getElementById('book-'+id).classList.add('hidden'); };
+async function loadSlotsInline(id){
+  const date=document.getElementById('date-'+id).value;
+  const warn=document.getElementById('warn-'+id);
+  const sel=document.getElementById('slot-'+id);
+  if(!date){ sel.innerHTML='<option value="">Select time</option>'; return; }
+  try{
+    const avail=await API.availability(id, date);
+    const map=new Map(avail.slots.map(s=>[s.startTime,s]));
+    sel.innerHTML='<option value="">Select time</option>' + slotList.map(t=>{
+      const s=map.get(t);
+      const booked = s && s.status==='BOOKED';
+      if(booked) return `<option value="" disabled>${t} — Booked${s.bookedBy ? ' by '+s.bookedBy : ''}</option>`;
+      return `<option value="${t}">${t} — Free</option>`;
+    }).join('');
+    warn.textContent='';
+  }catch(e){ warn.textContent=e.message; }
+}
+window.confirmInline=async(id)=>{
+  const date=document.getElementById('date-'+id).value;
+  const slot=document.getElementById('slot-'+id).value;
+  const purp=document.getElementById('purp-'+id).value.trim()||null;
+  const msg=document.getElementById('msg-'+id);
+  const warn=document.getElementById('warn-'+id);
+  if(!slot){ msg.style.color='#e11d48'; msg.textContent='Please select a time slot'; return; }
+  try{
+    const cnt=await API.pendingCount(id, date, slot);
+    if(cnt.count>0) warn.textContent=cnt.count+' other pending request(s) for this slot';
+  }catch{}
+  try{
+    const res=await API.book(id, date, slot, purp);
+    if(res.status==='PENDING'){ msg.style.color='#854d0e'; msg.textContent='Pending teacher approval. Check My Bookings for status.'; }
+    else { msg.style.color='#166534'; msg.textContent='Booking confirmed.'; }
+    setTimeout(()=>closeInline(id), 1200);
+  }catch(e){ msg.style.color='#e11d48'; msg.textContent=e.message; }
+};
+animate('.browse-hero', { opacity:[0,1], y:[8,0]}, { duration:0.4 });
+animate('.search-pill', { opacity:[0,1], scale:[0.98,1]}, { duration:0.35, delay:0.1 });
+animate('#filterBar', { opacity:[0,1]}, { duration:0.35, delay:0.18 });
+</script>
+</body></html>

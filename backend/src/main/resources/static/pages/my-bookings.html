@@ -1,0 +1,33 @@
+<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>My Bookings</title><link rel="stylesheet" href="/css/styles.css"><script type="importmap">{"imports":{"motion":"https://cdn.jsdelivr.net/npm/motion@12.16.0/+esm"}}</script></head><body>
+<div class="navbar"><div class="brand"><a href="/pages/browse.html">Campus Booking</a></div><nav class="nav-right"><a href="/pages/browse.html">Browse</a><a href="/pages/visualization.html">Visualization</a><a data-role="TEACHER" href="/pages/approvals.html">Approvals</a><a data-role="SUPERADMIN" href="/pages/admin.html">Admin</a><div class="account-wrap"><button class="account-btn" onclick="toggleAccount(event)">Account ▾</button><div id="accountDropdown" class="account-dropdown hidden"><div id="accountName" style="font-weight:600"></div><div id="accountEmail" style="font-size:12px;color:#666"></div><div id="accountRole" style="font-size:12px;color:#666;margin-bottom:8px"></div><a href="/pages/my-bookings.html" class="btn btn-outline btn-small" style="display:block;text-align:center;margin-bottom:8px">My Bookings</a><button class="btn btn-danger btn-small" style="width:100%" onclick="doLogout()">Logout</button></div></div></nav></div>
+<div class="container"><h2>My Bookings</h2><div id="list"></div></div>
+<script src="/js/api.js"></script><script src="/js/auth.js"></script>
+<script type="module">
+import { animate } from 'motion';
+checkAuth().then(u=>{ if(u){ document.getElementById('accountName').textContent=u.name; document.getElementById('accountEmail').textContent=u.email; document.getElementById('accountRole').textContent=u.role; }});
+window.toggleAccount=function(e){ e.stopPropagation(); document.getElementById('accountDropdown').classList.toggle('hidden'); };
+document.addEventListener('click', ()=> document.getElementById('accountDropdown').classList.add('hidden'));
+animate('.navbar', { opacity:[0,1], y:[-6,0]}, { duration:0.3 });
+
+async function load(){
+  const data=await API.myBookings();
+  const now=new Date();
+  const upcoming=[], past=[];
+  data.forEach(b=>{
+    const dt=new Date(b.bookingDate+'T'+b.startTime);
+    (dt>=now?upcoming:past).push(b);
+  });
+  function render(arr){
+    if(!arr.length) return '<p style="color:#666">None</p>';
+    return '<table><tr><th>Room</th><th>Date</th><th>Slot</th><th>Status</th><th>Action</th></tr>'+arr.map(b=>{
+      const canCancel=(b.status==='PENDING'||b.status==='APPROVED');
+      return `<tr><td>${b.roomName} (${b.building})</td><td>${b.bookingDate}</td><td>${b.startTime}</td><td><span class="badge badge-${b.status.toLowerCase()}">${b.status}</span></td><td>${canCancel?`<button class="btn btn-danger btn-small" onclick="cancelB(${b.id})">Cancel</button>`:''} ${b.rejectionReason?'<span style="font-size:12px;color:#991b1b">: '+b.rejectionReason+'</span>':''}</td></tr>`;
+    }).join('')+'</table>';
+  }
+  document.getElementById('list').innerHTML='<h3>Upcoming</h3>'+render(upcoming)+'<h3>Past / History</h3>'+render(past);
+  animate('#list', { opacity:[0,1], y:[4,0]}, { duration:0.3 });
+}
+window.cancelB=async function(id){ if(!confirm('Cancel?')) return; try{ await API.cancel(id); load(); }catch(e){ alert(e.message);} }
+load();
+</script>
+</body></html>

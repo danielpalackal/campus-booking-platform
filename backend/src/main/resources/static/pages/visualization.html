@@ -1,0 +1,103 @@
+<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Visualization</title><link rel="stylesheet" href="/css/styles.css"><script type="importmap">{"imports":{"motion":"https://cdn.jsdelivr.net/npm/motion@12.16.0/+esm"}}</script></head><body>
+<div class="navbar"><div class="brand"><a href="/pages/browse.html">Campus Booking</a></div><nav class="nav-right"><a href="/pages/browse.html">Browse</a><a href="/pages/visualization.html">Visualization</a><a data-role="TEACHER" href="/pages/approvals.html">Approvals</a><a data-role="SUPERADMIN" href="/pages/admin.html">Admin</a><div class="account-wrap"><button class="account-btn" onclick="toggleAccount(event)">Account ▾</button><div id="accountDropdown" class="account-dropdown hidden"><div id="accountName" style="font-weight:600"></div><div id="accountEmail" style="font-size:12px;color:#666"></div><div id="accountRole" style="font-size:12px;color:#666;margin-bottom:8px"></div><a href="/pages/my-bookings.html" class="btn btn-outline btn-small" style="display:block;text-align:center;margin-bottom:8px">My Bookings</a><button class="btn btn-danger btn-small" style="width:100%" onclick="doLogout()">Logout</button></div></div></nav></div>
+<div class="container">
+  <h2>Campus Visualization</h2>
+  <div id="buildings" class="building-cards"></div>
+  <div id="floors" class="floor-tabs"></div>
+  <div id="rooms" class="room-grid"></div>
+  <div id="dayview" class="card hidden"><h3 id="dayTitle"></h3><div id="slots"></div>
+    <div id="inlineBook" class="hidden" style="margin-top:16px;padding:16px;border:1px solid #2d4bf0;border-radius:10px;background:#f0f3ff">
+      <div style="font-weight:600;margin-bottom:8px" id="inlineTitle"></div>
+      <div id="inlineWarn" style="font-size:13px;color:#854d0e;margin-bottom:8px"></div>
+      <label style="display:block;margin-bottom:8px;font-size:14px">Purpose (optional) <input id="inlinePurpose" placeholder="e.g. Club meeting" style="width:100%;padding:8px;border:1px solid #ccc;border-radius:8px;margin-top:4px"></label>
+      <div id="inlineMsg" style="font-size:13px;color:#e11d48;margin-bottom:8px"></div>
+      <button class="btn btn-primary btn-small" onclick="confirmBook()">Book</button> <button class="btn btn-outline btn-small" onclick="cancelSelection()">Cancel</button>
+    </div>
+  </div>
+</div>
+<script src="/js/api.js"></script><script src="/js/auth.js"></script>
+<script type="module">
+import { animate, stagger } from 'motion';
+checkAuth().then(u=>{ if(u){ document.getElementById('accountName').textContent=u.name; document.getElementById('accountEmail').textContent=u.email; document.getElementById('accountRole').textContent=u.role; }});
+window.toggleAccount=function(e){ e.stopPropagation(); document.getElementById('accountDropdown').classList.toggle('hidden'); };
+document.addEventListener('click', ()=> document.getElementById('accountDropdown').classList.add('hidden'));
+animate('.navbar', { opacity:[0,1], y:[-6,0]}, { duration:0.35 });
+animate('#buildings', { opacity:[0,1]}, { duration:0.3, delay:0.1 });
+const buildings=['MAIN','HOSTEL','ANNEX'];
+const floorsByBuilding={ MAIN:['Ground','First','Second','Third','Terrace'], HOSTEL:['First','Second'], ANNEX:['Ground','First','Second'] };
+let selBuilding=null, selFloor=null, selRoomId=null, selDate=null, selSlot=null, selRoomName=null;
+const bc=document.getElementById('buildings');
+bc.innerHTML=buildings.map(b=>`<div class="building-card" onclick="selectBuilding('${b}')">${b}</div>`).join('');
+function selectBuilding(b){ selBuilding=b; selFloor=floorsByBuilding[b][0]; renderFloors(); loadRooms(); }
+function selectFloor(f){ selFloor=f==='null'?null:f; renderFloors(); loadRooms(); }
+function renderFloors(){
+  const fd=document.getElementById('floors');
+  fd.innerHTML=floorsByBuilding[selBuilding].map(f=>`<div class="floor-tab ${f===selFloor?'active':''}" onclick="selectFloor('${f}')">${f}</div>`).join('');
+}
+
+async function loadRooms(){
+  const params={ building: selBuilding };
+  if(selFloor) params.floor=selFloor;
+  const data=await API.rooms(params);
+  const list=data.content||data;
+  document.getElementById('rooms').innerHTML=list.map(r=>{
+    const cap = r.roomType==='COURT' ? '' : ` cap ${r.capacity}`;
+    return `<div class="room-box" onclick="openDay(${r.id},'${r.name}')">${r.name}<div style="font-size:11px;color:#666">${r.roomType}${cap}</div></div>`;
+  }).join('');
+  document.getElementById('dayview').classList.add('hidden');
+  hideInline();
+  animate('.room-box', { opacity:[0,1], y:[6,0]}, { duration:0.28, delay: stagger(0.03) });
+}
+function istDateISO(d=new Date()){ return new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Kolkata',year:'numeric',month:'2-digit',day:'numeric'}).format(d); }
+async function openDay(id,name){
+  selRoomId=id; selRoomName=name; selSlot=null;
+  const today=istDateISO(); selDate=today;
+  const d=await API.availability(id,today);
+  document.getElementById('dayTitle').textContent=name+' — '+today;
+  const dv=document.getElementById('dayview');
+  dv.classList.remove('hidden');
+  hideInline();
+  document.getElementById('slots').innerHTML=d.slots.map(s=>{
+    const cls=s.status==='FREE'?'slot-free':'slot-booked';
+    const tip=s.status==='BOOKED'?' by '+s.bookedBy+' ('+s.bookedByRole+')':'';
+    const click=s.status==='FREE'?`onclick="selectSlot('${s.startTime}')"`:'';
+    const sel = selSlot===s.startTime ? ' style="outline:2px solid #2d4bf0"' : '';
+    return `<span class="slot ${cls}" ${click}${sel}>${s.startTime}${tip}</span>`;
+  }).join('');
+  animate(dv, { opacity:[0,1], y:[6,0]}, { duration:0.3 });
+  animate('#slots .slot', { opacity:[0,1]}, { duration:0.2, delay: stagger(0.02) });
+}
+function selectSlot(slot){
+  selSlot=slot;
+  document.getElementById('inlineTitle').textContent=`Selected: ${selRoomName} — ${selDate} ${slot}`;
+  document.getElementById('inlinePurpose').value='';
+  document.getElementById('inlineMsg').textContent='';
+  document.getElementById('inlineWarn').textContent='';
+  const ib=document.getElementById('inlineBook');
+  ib.classList.remove('hidden');
+  animate(ib, { opacity:[0,1], y:[4,0]}, { duration:0.25 });
+  document.querySelectorAll('#slots .slot').forEach(el=>{
+    el.style.outline = el.textContent.startsWith(slot) ? '2px solid #2d4bf0' : '';
+  });
+  API.pendingCount(selRoomId, selDate, slot).then(c=>{
+    if(c.count>0) document.getElementById('inlineWarn').textContent=c.count+' other pending request(s) for this slot';
+  }).catch(()=>{});
+}
+function hideInline(){ document.getElementById('inlineBook').classList.add('hidden'); selSlot=null; }
+function cancelSelection(){ hideInline(); }
+async function confirmBook(){
+  if(!selRoomId || !selSlot) return;
+  const purpose=document.getElementById('inlinePurpose').value.trim()||null;
+  try{
+    const res=await API.book(selRoomId, selDate, selSlot, purpose);
+    if(res.status==='PENDING'){ document.getElementById('inlineMsg').style.color='#854d0e'; document.getElementById('inlineMsg').textContent='Pending teacher approval. Check My Bookings for status.'; }
+    else { document.getElementById('inlineMsg').style.color='#166534'; document.getElementById('inlineMsg').textContent='Booking confirmed.'; }
+    setTimeout(()=>{ hideInline(); openDay(selRoomId, selRoomName); }, 1200);
+  }catch(e){
+    document.getElementById('inlineMsg').style.color='#e11d48';
+    document.getElementById('inlineMsg').textContent=e.message;
+  }
+}
+window.selectBuilding=selectBuilding; window.selectFloor=selectFloor; window.openDay=openDay; window.selectSlot=selectSlot; window.hideInline=hideInline; window.cancelSelection=cancelSelection; window.confirmBook=confirmBook;
+</script>
+</body></html>
