@@ -71,7 +71,7 @@ Without this config, `POST /api/auth/google` returns 500 and dev-login is used.
 
 ## Frontend
 
-Served as single JAR from `backend/src/main/resources/static/` — no separate dev server, no CORS. Pages: `/index.html`, `/pages/browse.html`, `/pages/visualization.html`, `/pages/my-bookings.html`, `/pages/approvals.html`, `/pages/admin.html` (hidden, superadmin only).
+Served as single JAR from `backend/src/main/resources/static/` — no separate dev server, no CORS. Pages: `/index.html`, `/pages/browse.html`, `/pages/my-bookings.html`, `/pages/approvals.html`, `/pages/admin.html` (hidden, superadmin only).
 
 ## Notes
 
