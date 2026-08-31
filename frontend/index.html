@@ -1,21 +1,21 @@
 <!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Campus Booking — Login</title><link rel="stylesheet" href="/css/styles.css"><script type="importmap">{"imports":{"motion":"https://cdn.jsdelivr.net/npm/motion@12.16.0/+esm"}}</script></head><body>
-<div class="navbar"><div class="brand">St. Xavier's — Campus Booking</div></div>
+<div class="navbar"><div class="brand">St. Xavier's Campus Booking</div></div>
 <div class="container login-box">
   <div class="card">
     <h2>Sign in</h2>
-    <p style="color:#666;font-size:14px">Use your @xaviers.edu.in account. For local development, use the quick login below. For production, Google OAuth is enabled.</p>
     <div id="gis-btn" style="margin:12px 0"></div>
     <hr>
     <h4>Dev Quick Login (seeded users)</h4>
     <div class="dev-btns">
-      <button class="btn btn-outline btn-small" onclick="doDevLogin('student1@xaviers.edu.in')">Student 1</button>
-      <button class="btn btn-outline btn-small" onclick="doDevLogin('student2@xaviers.edu.in')">Student 2</button>
-      <button class="btn btn-outline btn-small" onclick="doDevLogin('teacher1@xaviers.edu.in')">Teacher 1</button>
-      <button class="btn btn-outline btn-small" onclick="doDevLogin('admin@xaviers.edu.in')">Superadmin</button>
+      <button class="btn btn-outline btn-small" onclick="fillLogin('student1@xaviers.edu.in','Student@123')">Student 1</button>
+      <button class="btn btn-outline btn-small" onclick="fillLogin('student2@xaviers.edu.in','Student@123')">Student 2</button>
+      <button class="btn btn-outline btn-small" onclick="fillLogin('teacher1@xaviers.edu.in','Teacher@123')">Teacher 1</button>
+      <button class="btn btn-outline btn-small" onclick="fillLogin('admin@xaviers.edu.in','Admin@123')">Superadmin</button>
     </div>
     <div style="margin-top:12px">
       <input id="emailInput" placeholder="email@xaviers.edu.in" style="width:100%;padding:8px;border:1px solid #ddd;border-radius:8px">
-      <button class="btn btn-primary" style="margin-top:8px;width:100%" onclick="doDevLogin(document.getElementById('emailInput').value.trim())">Login with email</button>
+      <input id="passwordInput" type="password" placeholder="Password (min 8 chars)" style="width:100%;padding:8px;border:1px solid #ddd;border-radius:8px;margin-top:8px">
+      <button class="btn btn-primary" style="margin-top:8px;width:100%" onclick="doLogin()">Login</button>
     </div>
     <p id="msg" style="color:#e11d48"></p>
   </div>
@@ -26,8 +26,16 @@
   animate('.navbar', { opacity:[0,1], y:[-6,0]}, { duration:0.35 });
   animate('.card', { opacity:[0,1], y:[6,0]}, { duration:0.35, delay:0.1 });
   API.me().then(()=> location.href='/pages/browse.html').catch(()=>{});
-  window.doDevLogin = async (e)=>{
-    try{ await API.devLogin(e); location.href='/pages/browse.html'; }catch(err){ document.getElementById('msg').textContent=err.message; }
+  window.fillLogin=(e,p)=>{ document.getElementById('emailInput').value=e; document.getElementById('passwordInput').value=p; };
+  window.doLogin=async()=>{
+    const email=document.getElementById('emailInput').value.trim();
+    const password=document.getElementById('passwordInput').value;
+    const msg=document.getElementById('msg');
+    msg.style.color='#e11d48';
+    if(!email || !password){ msg.textContent='All fields are compulsory — email and password required.'; return; }
+    if(password.length < 8){ msg.textContent='Password must be at least 8 characters.'; return; }
+    try{ await API.devLogin(email,password); location.href='/pages/browse.html'; }catch(err){ msg.textContent=err.message; }
   };
+  window.doDevLogin=window.doLogin;
 </script>
 </body></html>

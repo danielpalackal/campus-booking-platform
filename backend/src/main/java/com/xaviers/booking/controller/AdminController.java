@@ -24,8 +24,12 @@ public class AdminController {
         String email = body.get("email");
         String name = body.get("name");
         String role = body.get("role");
-        if (email == null || name == null || role == null) return ResponseEntity.badRequest().body(Map.of("error", "email, name, role required"));
-        return ResponseEntity.ok(adminService.add(email, name, role));
+        String password = body.get("password");
+        if (email == null || email.isBlank() || name == null || name.isBlank() || role == null || role.isBlank() || password == null || password.isBlank())
+            return ResponseEntity.badRequest().body(Map.of("error", "All fields are compulsory"));
+        if (password.length() < 8) return ResponseEntity.badRequest().body(Map.of("error", "Password must be at least 8 characters."));
+        if (role.isBlank()) return ResponseEntity.badRequest().body(Map.of("error", "Role must be selected."));
+        return ResponseEntity.ok(adminService.add(email, name, role, password));
     }
 
     @DeleteMapping("/users/{id}")

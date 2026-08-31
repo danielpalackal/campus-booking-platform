@@ -1,11 +1,11 @@
-INSERT INTO users (email, name, role, active) VALUES
-('admin@xaviers.edu.in', 'Super Admin', 'SUPERADMIN', TRUE),
-('teacher1@xaviers.edu.in', 'Dr. Jane Smith', 'TEACHER', TRUE),
-('teacher2@xaviers.edu.in', 'Prof. John Doe', 'TEACHER', TRUE),
-('student1@xaviers.edu.in', 'Alice Student', 'STUDENT', TRUE),
-('student2@xaviers.edu.in', 'Bob Student', 'STUDENT', TRUE);
+MERGE INTO users (email, name, role, active, password) KEY(email) VALUES
+('admin@xaviers.edu.in', 'Super Admin', 'SUPERADMIN', TRUE, '$2a$10$Gm2KSWioo7wqOvUATcw.6.QRg7B.Md/9hsu08jG99zf2EX2SpMD8m'),
+('teacher1@xaviers.edu.in', 'Dr. Jane Smith', 'TEACHER', TRUE, '$2a$10$rX0259FCELp9nkZZf3lx/OTrjnIF7AGk159BhCqH0cezFYHGpBBZq'),
+('teacher2@xaviers.edu.in', 'Prof. John Doe', 'TEACHER', TRUE, '$2a$10$1K2grUvTYW8nqwsXvpeyseDK1RZryJPHesF11KnlLSoWrb9.VvqKG'),
+('student1@xaviers.edu.in', 'Alice Student', 'STUDENT', TRUE, '$2a$10$7OGo70mw1hOFGEBYClK8J.yw5GFw9A0FS.6Y4..n5pp/wI9hHp/jy'),
+('student2@xaviers.edu.in', 'Bob Student', 'STUDENT', TRUE, '$2a$10$WyaM0a9ulpLcXq.LElfEeOfHlb6uEgsCNrnyog6knzTbuJJVgSnVq');
 
-INSERT INTO rooms (name, building, floor, room_type) VALUES
+MERGE INTO rooms (name, building, floor, room_type) KEY(name) VALUES
 ('Seminar Room', 'MAIN', 'Ground', 'CLASSROOM'),
 ('LR01', 'MAIN', 'Ground', 'CLASSROOM'),
 ('LR02', 'MAIN', 'Ground', 'CLASSROOM'),

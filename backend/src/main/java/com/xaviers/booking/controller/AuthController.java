@@ -13,6 +13,7 @@ import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.Collections;
@@ -24,13 +25,14 @@ public class AuthController {
 
     private final UserRepository userRepo;
     private final JwtUtil jwtUtil;
+    private final PasswordEncoder passwordEncoder;
     @Value("${app.google.client-id:}")
     private String googleClientId;
     @Value("${app.oauth.allowed-domain:xaviers.edu.in}")
     private String allowedDomain;
 
-    public AuthController(UserRepository userRepo, JwtUtil jwtUtil) {
-        this.userRepo = userRepo; this.jwtUtil = jwtUtil;
+    public AuthController(UserRepository userRepo, JwtUtil jwtUtil, PasswordEncoder passwordEncoder) {
+        this.userRepo = userRepo; this.jwtUtil = jwtUtil; this.passwordEncoder = passwordEncoder;
     }
 
     private void setCookie(HttpServletResponse res, String token) {
@@ -65,14 +67,28 @@ public class AuthController {
     @PostMapping("/dev-login")
     public ResponseEntity<?> devLogin(@RequestBody Map<String, String> body, HttpServletResponse res) {
         String email = body.get("email");
-        if (email == null) return ResponseEntity.badRequest().body(Map.of("error", "email required"));
-        return loginWithEmail(email.toLowerCase(), null, res);
+        String password = body.get("password");
+        if (email == null || email.isBlank()) return ResponseEntity.badRequest().body(Map.of("error", "All fields are compulsory — email and password required."));
+        if (password == null || password.isBlank()) return ResponseEntity.badRequest().body(Map.of("error", "All fields are compulsory — email and password required."));
+        if (password.length() < 8) return ResponseEntity.badRequest().body(Map.of("error", "Password must be at least 8 characters."));
+        return loginWithEmailAndPassword(email.toLowerCase(), password, res);
     }
 
     private ResponseEntity<?> loginWithEmail(String email, String googleName, HttpServletResponse res) {
         var opt = userRepo.findByEmail(email.toLowerCase());
         if (opt.isEmpty() || !opt.get().getActive()) return ResponseEntity.status(403).body(Map.of("error", "User not registered or inactive. Contact superadmin."));
         User user = opt.get();
+        String token = jwtUtil.generateToken(user.getId(), user.getEmail(), user.getRole().name());
+        setCookie(res, token);
+        return ResponseEntity.ok(new UserDto(user.getId(), user.getEmail(), user.getName(), user.getRole().name()));
+    }
+
+    private ResponseEntity<?> loginWithEmailAndPassword(String email, String password, HttpServletResponse res) {
+        var opt = userRepo.findByEmail(email.toLowerCase());
+        if (opt.isEmpty() || !opt.get().getActive()) return ResponseEntity.status(403).body(Map.of("error", "User not registered or inactive. Contact superadmin."));
+        User user = opt.get();
+        if (user.getPassword() == null || !passwordEncoder.matches(password, user.getPassword()))
+            return ResponseEntity.status(401).body(Map.of("error", "Invalid email or password."));
         String token = jwtUtil.generateToken(user.getId(), user.getEmail(), user.getRole().name());
         setCookie(res, token);
         return ResponseEntity.ok(new UserDto(user.getId(), user.getEmail(), user.getName(), user.getRole().name()));

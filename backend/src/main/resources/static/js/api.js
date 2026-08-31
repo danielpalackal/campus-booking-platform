@@ -8,7 +8,7 @@ const API = {
   },
   me() { return this.req('/api/auth/me'); },
   logout() { return this.req('/api/auth/logout', { method: 'POST' }); },
-  devLogin(email) { return this.req('/api/auth/dev-login', { method: 'POST', body: JSON.stringify({ email }) }); },
+  devLogin(email, password) { return this.req('/api/auth/dev-login', { method: 'POST', body: JSON.stringify({ email, password }) }); },
   googleLogin(idToken) { return this.req('/api/auth/google', { method: 'POST', body: JSON.stringify({ idToken }) }); },
   rooms(params={}) {
     const q = new URLSearchParams(params).toString();
@@ -25,6 +25,6 @@ const API = {
   approve(id) { return this.req(`/api/bookings/${id}/approve`, { method: 'PUT' }); },
   reject(id, reason) { return this.req(`/api/bookings/${id}/reject`, { method: 'PUT', body: JSON.stringify({ reason }) }); },
   adminUsers() { return this.req('/api/admin/users'); },
-  adminAdd(email, name, role) { return this.req('/api/admin/users', { method: 'POST', body: JSON.stringify({ email, name, role }) }); },
+  adminAdd(email, name, role, password) { return this.req('/api/admin/users', { method: 'POST', body: JSON.stringify({ email, name, role, password }) }); },
   adminRemove(id) { return this.req(`/api/admin/users/${id}`, { method: 'DELETE' }); }
 };

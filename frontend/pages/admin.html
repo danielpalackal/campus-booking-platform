@@ -4,7 +4,8 @@
 <div class="card"><h3>Add User</h3>
   <input id="email" placeholder="email@xaviers.edu.in" style="padding:8px;border:1px solid #ddd;border-radius:8px">
   <input id="name" placeholder="Full name" style="padding:8px;border:1px solid #ddd;border-radius:8px">
-  <select id="role" style="padding:8px;border:1px solid #ddd;border-radius:8px"><option>STUDENT</option><option>TEACHER</option></select>
+  <input id="password" type="password" placeholder="Password (min 8 chars)" style="padding:8px;border:1px solid #ddd;border-radius:8px">
+  <select id="role" style="padding:8px;border:1px solid #ddd;border-radius:8px"><option value="">-- Select Role --</option><option value="STUDENT">STUDENT</option><option value="TEACHER">TEACHER</option></select>
   <button class="btn btn-primary btn-small" onclick="add()">Add</button><span id="msg" style="margin-left:8px"></span>
 </div>
 <div id="list"></div>
@@ -25,8 +26,14 @@ async function load(){
 window.add=async function(){
   const email=document.getElementById('email').value.trim();
   const name=document.getElementById('name').value.trim();
+  const password=document.getElementById('password').value;
   const role=document.getElementById('role').value;
-  try{ await API.adminAdd(email,name,role); document.getElementById('msg').textContent='Added'; load(); }catch(e){ document.getElementById('msg').textContent=e.message; }
+  const msg=document.getElementById('msg');
+  msg.style.color='#e11d48';
+  if(!email || !name || !password || !role){ msg.textContent='All fields are compulsory'; return; }
+  if(password.length < 8){ msg.textContent='Password must be at least 8 characters.'; return; }
+  if(!role){ msg.textContent='Please select a role.'; return; }
+  try{ await API.adminAdd(email,name,role,password); msg.style.color='#166534'; msg.textContent='Added'; document.getElementById('password').value=''; load(); }catch(e){ msg.style.color='#e11d48'; msg.textContent=e.message; }
 }
 window.removeU=async function(id){ if(!confirm('Deactivate user?')) return; await API.adminRemove(id); load(); }
 load();
