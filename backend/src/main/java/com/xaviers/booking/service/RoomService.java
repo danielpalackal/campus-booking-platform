@@ -29,12 +29,12 @@ public class RoomService {
         this.roomRepo = roomRepo; this.bookingRepo = bookingRepo;
     }
 
-    public Page<Room> search(Building building, String floor, RoomType type, Integer minCapacity, String search, Pageable pageable) {
-        return roomRepo.search(building, floor, type, minCapacity, search, pageable);
+    public Page<Room> search(Building building, String floor, RoomType type, String search, Pageable pageable) {
+        return roomRepo.search(building, floor, type, search, pageable);
     }
 
     public List<Room> findByBuilding(Building building) {
-        return roomRepo.search(building, null, null, null, null, Pageable.unpaged()).getContent();
+        return roomRepo.search(building, null, null, null, Pageable.unpaged()).getContent();
     }
 
     public RoomAvailabilityDto availability(Long roomId, LocalDate date) {

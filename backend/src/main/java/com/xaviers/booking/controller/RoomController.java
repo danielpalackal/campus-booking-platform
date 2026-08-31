@@ -30,14 +30,13 @@ public class RoomController {
             @RequestParam(required = false) String building,
             @RequestParam(required = false) String floor,
             @RequestParam(required = false) String type,
-            @RequestParam(required = false) Integer capacity,
             @RequestParam(required = false) String search,
             @PageableDefault(size = 100) Pageable pageable) {
         Building b = null;
         if (building != null && !building.isBlank()) b = Building.valueOf(building.toUpperCase());
         RoomType t = null;
         if (type != null && !type.isBlank()) t = RoomType.valueOf(type.toUpperCase());
-        return roomService.search(b, floor, t, capacity, search, pageable);
+        return roomService.search(b, floor, t, search, pageable);
     }
 
     @GetMapping("/{id}/availability")

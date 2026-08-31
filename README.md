@@ -49,7 +49,7 @@ Without this config, `POST /api/auth/google` returns 500 and dev-login is used.
 
 ## Seeded Rooms
 
-~76 rooms: Main (Seminar/MMR/Scavi/LR01-LR44/Fr. Bonet Lab), Hostel (LR52-56/XKC Labs), Annex (CR01-CR22/BDA Lab), Grounds (Volleyball/Basketball Courts). See `database/seed_data.sql`.
+~72 rooms: Main Ground (Seminar/LR01-02/Chem/Phys), First (MMR/LR11-14/Bonet), Second (Scavi/LR20A-G/LR21-27), Third (LR31-38), Terrace (LR41-44), Hostel (LR51-54/LR61-64/XKC Labs), Annex (CR01-CR22/BDA). See `backend/src/main/resources/seed.sql`.
 
 ## Key Endpoints
 
@@ -58,7 +58,7 @@ Without this config, `POST /api/auth/google` returns 500 and dev-login is used.
 | POST | `/api/auth/dev-login` | public |
 | POST | `/api/auth/google` | public |
 | GET | `/api/auth/me` | any |
-| GET | `/api/rooms?building=&floor=&type=&capacity=&search=` | any |
+| GET | `/api/rooms?building=&floor=&type=&search=` | any |
 | GET | `/api/rooms/{id}/availability?date=` | any |
 | GET | `/api/rooms/{id}/pending-count?date=&slot=` | any |
 | POST | `/api/bookings` | student/teacher |

@@ -22,14 +22,12 @@ public interface RoomRepository extends JpaRepository<Room, Long> {
         (:building is null or r.building = :building)
         and (:floor is null or r.floor = :floor)
         and (:type is null or r.roomType = :type)
-        and (:minCapacity is null or r.roomType = com.xaviers.booking.model.RoomType.COURT or r.capacity >= :minCapacity)
         and (:search is null or lower(r.name) like lower(concat('%', :search, '%')))
         """)
     Page<Room> search(
         @Param("building") Building building,
         @Param("floor") String floor,
         @Param("type") RoomType type,
-        @Param("minCapacity") Integer minCapacity,
         @Param("search") String search,
         Pageable pageable);
 }

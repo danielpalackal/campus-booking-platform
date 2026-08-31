@@ -55,13 +55,12 @@ window.doSearch=async()=>{
   }
   no.classList.add('hidden'); res.classList.remove('hidden');
   res.innerHTML=list.map(r=>{
-    const cap = r.roomType==='COURT' ? '' : ` · cap ${r.capacity}`;
     return `<div class="card room-card" data-id="${r.id}" style="margin-bottom:0">
       <div style="display:flex;justify-content:space-between;align-items:start">
         <h4 style="margin:0">${r.name}</h4>
         <span style="font-size:10px;padding:3px 7px;border-radius:999px;background:#eef2ff;color:#2d4bf0;font-weight:600">${r.roomType}</span>
       </div>
-      <div style="font-size:13px;color:#666;margin:6px 0">${r.building} · ${r.floor||'-'}${cap}</div>
+      <div style="font-size:13px;color:#666;margin:6px 0">${r.building} · ${r.floor||'-'}</div>
       <button class="btn btn-primary btn-small" onclick="openBookInline(${r.id},'${r.name.replace(/'/g,"\\'")}')">Book</button>
       <div id="book-${r.id}" class="hidden" style="margin-top:12px;padding:12px;border:1px solid #2d4bf0;border-radius:10px;background:#f0f3ff"></div>
     </div>`;
