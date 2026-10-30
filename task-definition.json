@@ -1,0 +1,45 @@
+{
+  "family": "campus-booking-task",
+  "networkMode": "awsvpc",
+  "requiresCompatibilities": [
+    "FARGATE"
+  ],
+  "cpu": "512",
+  "memory": "1024",
+  "executionRoleArn": "arn:aws:iam::025452941139:role/ecsTaskExecutionRole",
+  "containerDefinitions": [
+    {
+      "name": "campus-booking-container",
+      "image": "025452941139.dkr.ecr.ap-southeast-2.amazonaws.com/campus-booking-platform:latest",
+      "cpu": 0,
+      "memory": 1024,
+      "memoryReservation": 512,
+      "portMappings": [
+        {
+          "containerPort": 8080,
+          "hostPort": 8080,
+          "protocol": "tcp",
+          "name": "campus-booking-container-8080-tcp",
+          "appProtocol": "http"
+        }
+      ],
+      "essential": true,
+      "environment": [],
+      "environmentFiles": [],
+      "mountPoints": [],
+      "volumesFrom": [],
+      "ulimits": [],
+      "logConfiguration": {
+        "logDriver": "awslogs",
+        "options": {
+          "awslogs-group": "/ecs/campus-booking-task",
+          "awslogs-create-group": "true",
+          "awslogs-region": "ap-southeast-2",
+          "awslogs-stream-prefix": "ecs"
+        },
+        "secretOptions": []
+      },
+      "systemControls": []
+    }
+  ]
+}

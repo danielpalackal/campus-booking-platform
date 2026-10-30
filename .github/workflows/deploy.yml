@@ -1,4 +1,4 @@
-name: Build and Push Docker Image
+name: Build and Deploy to AWS ECS
 
 on:
   push:
@@ -10,10 +10,13 @@ on:
 env:
   AWS_REGION: ap-southeast-2
   ECR_REPOSITORY: campus-booking-platform
+  ECS_CLUSTER: campus-booking-platform
+  ECS_SERVICE: campus-booking-service-new
+  CONTAINER_NAME: campus-booking-container
 
 jobs:
-  build-and-push:
-    name: Build and Push to ECR
+  deploy:
+    name: Build, Push and Deploy
     runs-on: ubuntu-latest
 
     steps:
@@ -32,6 +35,7 @@ jobs:
         uses: aws-actions/amazon-ecr-login@v2
 
       - name: Build and Push Docker Image
+        id: build-image
         env:
           ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
           IMAGE_TAG: ${{ github.sha }}
@@ -40,3 +44,20 @@ jobs:
           docker tag $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG $ECR_REGISTRY/$ECR_REPOSITORY:latest
           docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
           docker push $ECR_REGISTRY/$ECR_REPOSITORY:latest
+          echo "image=$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG" >> $GITHUB_OUTPUT
+
+      - name: Update ECS Task Definition
+        id: task-def
+        uses: aws-actions/amazon-ecs-render-task-definition@v1
+        with:
+          task-definition: task-definition.json
+          container-name: ${{ env.CONTAINER_NAME }}
+          image: ${{ steps.build-image.outputs.image }}
+
+      - name: Deploy to Amazon ECS
+        uses: aws-actions/amazon-ecs-deploy-task-definition@v2
+        with:
+          task-definition: ${{ steps.task-def.outputs.task-definition }}
+          service: ${{ env.ECS_SERVICE }}
+          cluster: ${{ env.ECS_CLUSTER }}
+          wait-for-service-stability: true
