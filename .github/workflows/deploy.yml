@@ -43,14 +43,14 @@ jobs:
       - name: Run Trivy Vulnerability Scanner
         run: |
           docker run --rm \
-          -v /var/run/docker.sock:/var/run/docker.sock \
-          aquasec/trivy:0.70.0 \
-          image \
-          --exit-code 1 \
-          --ignore-unfixed \
-          --severity HIGH,CRITICAL \
-          --vuln-type os,library \
-          campus-booking-platform:${{ github.sha }}
+            -v /var/run/docker.sock:/var/run/docker.sock \
+            aquasec/trivy:0.70.0 \
+            image \
+            --exit-code 1 \
+            --ignore-unfixed \
+            --severity HIGH,CRITICAL \
+            --pkg-types os,library \
+            campus-booking-platform:${{ github.sha }}
 
       - name: Push Docker Image to ECR
         id: build-image
