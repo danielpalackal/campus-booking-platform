@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - main
+      - security/spring-boot-4-migration
 
   workflow_dispatch:
 
