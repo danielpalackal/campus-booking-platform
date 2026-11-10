@@ -5,6 +5,7 @@ WORKDIR /build
 
 # Copy the Maven descriptor first to improve Docker layer caching.
 COPY backend/pom.xml backend/pom.xml
+COPY backend/checkstyle.xml backend/checkstyle.xml
 
 # Download dependencies before copying the source code.
 RUN mvn -f backend/pom.xml dependency:go-offline
