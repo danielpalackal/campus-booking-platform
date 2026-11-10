@@ -25,6 +25,12 @@ RUN executable_jar="$(find /build/backend/target -maxdepth 1 -type f -name '*.ja
 # Runtime stage
 FROM eclipse-temurin:17-jre
 
+# Apply the latest security updates to the Ubuntu runtime packages, including
+# the patched apt and libapt-pkg7.0 versions, then remove apt metadata.
+RUN apt-get update \
+    && apt-get install --yes --only-upgrade apt libapt-pkg7.0 \
+    && rm -rf /var/lib/apt/lists/*
+
 WORKDIR /app
 
 # Copy the JAR produced by the build stage.
