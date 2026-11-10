@@ -20,11 +20,12 @@
 *.rar
 
 backend/target/
-backend/src/main/resources/application-local.properties
+node_modules/
 .env
 data/
 *.mv.db
 *.trace.db
+*.lock.db
 
 # virtual machine crash logs, see http://www.java.com/en/download/help/error_hotspot.xml
 hs_err_pid*

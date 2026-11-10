@@ -1,59 +1,167 @@
 name: Build and Deploy to AWS ECS
 
 on:
+  pull_request:
+    branches:
+      - main
   push:
     branches:
       - main
       - security/spring-boot-4-migration
-
   workflow_dispatch:
+
+permissions:
+  contents: read
 
 env:
   AWS_REGION: ap-southeast-2
   ECR_REPOSITORY: campus-booking-platform
-  ECS_CLUSTER: campus-booking-platform
-  ECS_SERVICE: campus-booking-service-new
+  ECS_CLUSTER: campus-booking-dev-cluster
+  ECS_SERVICE: campus-booking-dev-service
+  ECS_TASK_DEFINITION: campus-booking-dev-task
   CONTAINER_NAME: campus-booking-container
 
 jobs:
-  deploy:
-    name: Build, Scan, Push and Deploy
+  backend-quality:
+    name: Backend tests and coverage
     runs-on: ubuntu-latest
-
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+          cache: maven
+      - name: Run backend tests and JaCoCo quality gate
+        working-directory: backend
+        run: mvn --batch-mode verify
+      - name: Upload JaCoCo report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: jacoco-report
+          path: backend/target/site/jacoco/
+          if-no-files-found: ignore
 
+  frontend-quality:
+    name: Frontend lint and syntax checks
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - name: Install frontend lint dependencies
+        run: npm ci
+      - name: Run ESLint
+        run: npm run lint
+      - name: Check frontend JavaScript syntax
+        shell: bash
+        run: |
+          set -euo pipefail
+          find frontend -type f -name '*.js' -print0 | while IFS= read -r -d '' file; do
+            node --check "$file"
+          done
+      - name: Check frontend assets are present
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -s frontend/index.html
+          test -s frontend/css/styles.css
+          test -s frontend/js/api.js
+          test -s frontend/js/auth.js
+
+  docker-quality:
+    name: Docker build, smoke test and Trivy scan
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+      - name: Build validated Docker image
+        env:
+          IMAGE_TAG: ${{ github.sha }}
+        run: docker build --tag campus-booking-platform:$IMAGE_TAG .
+      - name: Run container smoke test
+        shell: bash
+        env:
+          IMAGE_TAG: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          container_id="$(docker run --detach \
+            --publish 18080:8080 \
+            --env SPRING_PROFILES_ACTIVE=local \
+            --env 'SPRING_DATASOURCE_URL=jdbc:h2:mem:ci;DB_CLOSE_DELAY=-1' \
+            --env SPRING_DATASOURCE_DRIVER_CLASS_NAME=org.h2.Driver \
+            --env SPRING_DATASOURCE_USERNAME=sa \
+            --env SPRING_DATASOURCE_PASSWORD= \
+            campus-booking-platform:$IMAGE_TAG)"
+          trap 'docker logs "$container_id" || true; docker rm --force "$container_id" >/dev/null' EXIT
+          for attempt in $(seq 1 30); do
+            if curl --fail --silent --show-error http://127.0.0.1:18080/ >/dev/null; then
+              exit 0
+            fi
+            sleep 2
+          done
+          exit 1
+      - name: Run Trivy vulnerability scanner
+        env:
+          IMAGE_TAG: ${{ github.sha }}
+        run: |
+          docker run --rm \
+            -v /var/run/docker.sock:/var/run/docker.sock \
+            aquasec/trivy:0.70.0 \
+            image --exit-code 1 --ignore-unfixed --severity HIGH,CRITICAL \
+            --pkg-types os,library campus-booking-platform:$IMAGE_TAG
+      - name: Run Trivy filesystem vulnerability scanner
+        run: |
+          docker run --rm \
+            -v "$PWD:/workspace" \
+            aquasec/trivy:0.70.0 \
+            fs --scanners vuln --severity HIGH,CRITICAL --exit-code 1 \
+            /workspace
+      - name: Export validated Docker image
+        env:
+          IMAGE_TAG: ${{ github.sha }}
+        run: docker save campus-booking-platform:$IMAGE_TAG | gzip > campus-booking-image.tar.gz
+      - name: Upload validated Docker image
+        uses: actions/upload-artifact@v4
+        with:
+          name: validated-docker-image
+          path: campus-booking-image.tar.gz
+          retention-days: 1
+
+  deploy:
+    name: Push and deploy to production
+    if: >-
+      (github.event_name == 'push' && github.ref == 'refs/heads/main') ||
+      (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main')
+    needs: [backend-quality, frontend-quality, docker-quality]
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+      - name: Download validated Docker image
+        uses: actions/download-artifact@v4
+        with:
+          name: validated-docker-image
+      - name: Load validated Docker image
+        run: gunzip -c campus-booking-image.tar.gz | docker load
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ env.AWS_REGION }}
-
       - name: Login to Amazon ECR
         id: login-ecr
         uses: aws-actions/amazon-ecr-login@v2
-
-      - name: Build Docker Image
-        env:
-          IMAGE_TAG: ${{ github.sha }}
-        run: |
-          docker build -t campus-booking-platform:$IMAGE_TAG .
-
-      - name: Run Trivy Vulnerability Scanner
-        run: |
-          docker run --rm \
-            -v /var/run/docker.sock:/var/run/docker.sock \
-            aquasec/trivy:0.70.0 \
-            image \
-            --exit-code 1 \
-            --ignore-unfixed \
-            --severity HIGH,CRITICAL \
-            --pkg-types os,library \
-            campus-booking-platform:${{ github.sha }}
-
-      - name: Push Docker Image to ECR
+      - name: Push validated image to ECR
         id: build-image
         env:
           ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
@@ -61,20 +169,22 @@ jobs:
         run: |
           docker tag campus-booking-platform:$IMAGE_TAG $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
           docker tag campus-booking-platform:$IMAGE_TAG $ECR_REGISTRY/$ECR_REPOSITORY:latest
-
           docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
           docker push $ECR_REGISTRY/$ECR_REPOSITORY:latest
-
-          echo "image=$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG" >> $GITHUB_OUTPUT
-
-      - name: Update ECS Task Definition
+          echo "image=$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG" >> "$GITHUB_OUTPUT"
+      - name: Fetch current ECS task definition
+        run: |
+          aws ecs describe-task-definition \
+            --task-definition "$ECS_TASK_DEFINITION" \
+            --query taskDefinition --output json |
+            jq 'del(.taskDefinitionArn, .revision, .status, .requiresAttributes, .compatibilities, .registeredAt, .registeredBy)' > task-definition.json
+      - name: Update ECS Task Definition image
         id: task-def
         uses: aws-actions/amazon-ecs-render-task-definition@v1
         with:
           task-definition: task-definition.json
           container-name: ${{ env.CONTAINER_NAME }}
           image: ${{ steps.build-image.outputs.image }}
-
       - name: Deploy to Amazon ECS
         uses: aws-actions/amazon-ecs-deploy-task-definition@v2
         with:

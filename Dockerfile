@@ -15,6 +15,12 @@ COPY backend/src backend/src
 # Build the executable Spring Boot JAR.
 RUN mvn -f backend/pom.xml clean package -DskipTests
 
+# Fail the image build if the AWS MySQL runtime driver is missing from the
+# executable Spring Boot JAR.
+RUN executable_jar="$(find /build/backend/target -maxdepth 1 -type f -name '*.jar' ! -name '*.jar.original' -print -quit)" \
+    && test -n "$executable_jar" \
+    && jar tf "$executable_jar" | grep -q 'BOOT-INF/lib/mysql-connector-j-'
+
 # Runtime stage
 FROM eclipse-temurin:17-jre
 
