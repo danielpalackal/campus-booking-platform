@@ -94,19 +94,21 @@ jobs:
           set -euo pipefail
           container_id="$(docker run --detach \
             --publish 18080:8080 \
-            --env SPRING_PROFILES_ACTIVE=local \
-            --env 'SPRING_DATASOURCE_URL=jdbc:h2:mem:ci;DB_CLOSE_DELAY=-1' \
+            --env SPRING_PROFILES_ACTIVE=ci \
+            --env 'SPRING_DATASOURCE_URL=jdbc:h2:mem:ci;MODE=MySQL;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE' \
             --env SPRING_DATASOURCE_DRIVER_CLASS_NAME=org.h2.Driver \
             --env SPRING_DATASOURCE_USERNAME=sa \
             --env SPRING_DATASOURCE_PASSWORD= \
             campus-booking-platform:$IMAGE_TAG)"
           trap 'docker logs "$container_id" || true; docker rm --force "$container_id" >/dev/null' EXIT
-          for attempt in $(seq 1 30); do
+          for attempt in $(seq 1 45); do
             if curl --fail --silent --show-error http://127.0.0.1:18080/ >/dev/null; then
               exit 0
             fi
             sleep 2
           done
+          echo 'Container did not become ready; recent application logs:' >&2
+          docker logs "$container_id" >&2 || true
           exit 1
       - name: Run Trivy vulnerability scanner
         env:
