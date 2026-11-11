@@ -3,5 +3,8 @@
 .DS_Store
 backend/target
 data
+*.mv.db
+*.trace.db
+*.lock.db
 *.log
 .env

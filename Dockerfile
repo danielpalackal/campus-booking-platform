@@ -5,6 +5,7 @@ WORKDIR /build
 
 # Copy the Maven descriptor first to improve Docker layer caching.
 COPY backend/pom.xml backend/pom.xml
+COPY backend/checkstyle.xml backend/checkstyle.xml
 
 # Download dependencies before copying the source code.
 RUN mvn -f backend/pom.xml dependency:go-offline
@@ -15,8 +16,20 @@ COPY backend/src backend/src
 # Build the executable Spring Boot JAR.
 RUN mvn -f backend/pom.xml clean package -DskipTests
 
+# Fail the image build if the AWS MySQL runtime driver is missing from the
+# executable Spring Boot JAR.
+RUN executable_jar="$(find /build/backend/target -maxdepth 1 -type f -name '*.jar' ! -name '*.jar.original' -print -quit)" \
+    && test -n "$executable_jar" \
+    && jar tf "$executable_jar" | grep -q 'BOOT-INF/lib/mysql-connector-j-'
+
 # Runtime stage
 FROM eclipse-temurin:17-jre
+
+# Apply the latest security updates to the Ubuntu runtime packages, including
+# the patched apt and libapt-pkg7.0 versions, then remove apt metadata.
+RUN apt-get update \
+    && apt-get install --yes --only-upgrade apt libapt-pkg7.0 \
+    && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
 
